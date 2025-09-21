@@ -172,14 +172,9 @@ mod tests {
 
     const MAX_SIZE: usize = 1024 * 1024; // 1 MB
 
-    #[derive(Debug, Clone, PartialEq, Eq)]
+    /// Test with sized trivially droppable type.
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     struct Seqno(NonZeroU64);
-
-    impl Drop for Seqno {
-        fn drop(&mut self) {
-            self.0 = self.0.saturating_add(5);
-        }
-    }
 
     impl TypeGenerator for Seqno {
         fn generate<D: bolero::Driver>(driver: &mut D) -> Option<Self> {
@@ -190,14 +185,13 @@ mod tests {
         }
     }
 
+    /// Test with type that is not trivially droppable.
     #[derive(Debug, Clone, PartialEq, Eq, TypeGenerator)]
-    struct Zst;
+    struct Bytes(Vec<u8>);
 
-    impl Drop for Zst {
-        fn drop(&mut self) {
-            let _ = 5 + 5;
-        }
-    }
+    /// Test with zero sized type.
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, TypeGenerator)]
+    struct Zst;
 
     #[test]
     fn seq_no_zero_len() {
@@ -215,28 +209,6 @@ mod tests {
             .for_each(|size| {
                 let elements = vec![None; *size];
                 let array = Array::<Option<Seqno>>::with_none(*size);
-
-                assert_eq(&elements, &array);
-                assert_eq!(format!("{elements:?}"), format!("{array:?}"));
-            });
-    }
-
-    #[test]
-    fn zst_zero_len() {
-        let elements: Vec<Zst> = Vec::default();
-        let array: Array<Zst> = Array::default();
-
-        assert_eq(&elements, &array);
-        assert_eq!(format!("{elements:?}"), format!("{array:?}"));
-    }
-
-    #[test]
-    fn zst_with_none() {
-        check!()
-            .with_generator(generator::produce::<usize>().with().bounds(1..1024))
-            .for_each(|size| {
-                let elements = vec![None; *size];
-                let array = Array::<Option<Zst>>::with_none(*size);
 
                 assert_eq(&elements, &array);
                 assert_eq!(format!("{elements:?}"), format!("{array:?}"));
@@ -270,6 +242,28 @@ mod tests {
     }
 
     #[test]
+    fn zst_zero_len() {
+        let elements: Vec<Zst> = Vec::default();
+        let array: Array<Zst> = Array::default();
+
+        assert_eq(&elements, &array);
+        assert_eq!(format!("{elements:?}"), format!("{array:?}"));
+    }
+
+    #[test]
+    fn zst_with_none() {
+        check!()
+            .with_generator(generator::produce::<usize>().with().bounds(1..1024))
+            .for_each(|size| {
+                let elements = vec![None; *size];
+                let array = Array::<Option<Zst>>::with_none(*size);
+
+                assert_eq(&elements, &array);
+                assert_eq!(format!("{elements:?}"), format!("{array:?}"));
+            });
+    }
+
+    #[test]
     fn zst_arbitrary() {
         check!()
             .with_max_len(MAX_SIZE)
@@ -288,6 +282,54 @@ mod tests {
                 for elem in &array {
                     assert_eq!(elem, &Zst);
                 }
+            });
+    }
+
+    #[test]
+    fn bytes_zero_len() {
+        let elements: Vec<Bytes> = Vec::default();
+        let array: Array<Bytes> = Array::default();
+
+        assert_eq(&elements, &array);
+        assert_eq!(format!("{elements:?}"), format!("{array:?}"));
+    }
+
+    #[test]
+    fn bytes_with_none() {
+        check!()
+            .with_generator(generator::produce::<usize>().with().bounds(1..1024))
+            .for_each(|size| {
+                let elements = vec![None; *size];
+                let array = Array::<Option<Bytes>>::with_none(*size);
+
+                assert_eq(&elements, &array);
+                assert_eq!(format!("{elements:?}"), format!("{array:?}"));
+            });
+    }
+
+    #[test]
+    fn bytes_arbitrary() {
+        check!()
+            .with_max_len(MAX_SIZE)
+            .with_type::<Vec<Bytes>>()
+            .for_each(|elements| {
+                let mut array = Array::from(elements.as_slice());
+                assert_eq(&elements, &array);
+                assert_eq!(format!("{elements:?}"), format!("{array:?}"));
+
+                // Mutate all the elements in the array.
+                for elem in &mut array {
+                    elem.0.clear();
+                }
+
+                // Make sure update is visible correctly.
+                for elem in &array {
+                    assert!(elem.0.is_empty());
+                }
+
+                // Clone array and make sure equal to base array.
+                let array_clone = array.clone();
+                assert_eq(&array, &array_clone);
             });
     }
 
