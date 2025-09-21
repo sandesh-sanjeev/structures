@@ -1,5 +1,10 @@
 # Structures
 
+This crate provides different types of heap allocated data structures.
+
+[![Build](https://github.com/sandesh-sanjeev/structures/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/sandesh-sanjeev/structures/actions/workflows/rust.yml)
+[![Coverage Status](https://coveralls.io/repos/github/sandesh-sanjeev/structures/badge.svg?branch=master)](https://coveralls.io/github/sandesh-sanjeev/structures?branch=master)
+
 ## Array
 
 ## Coverage
@@ -12,19 +17,19 @@ cargo install grcov
 rustup component add llvm-tools
 export RUSTFLAGS="-Cinstrument-coverage" 
 cargo build
-export LLVM_PROFILE_FILE="structures-%p-%m.profraw" 
-cargo test
 mkdir ./target/debug/coverage
-grcov . -s . --binary-path ./target/debug/ -t html --branch -o ./target/debug/coverage/ --llvm --ignore-not-existing
-grcov . -s . --binary-path ./target/debug/ -t lcov --branch -o ./target/debug/coverage/lcov.info --llvm --ignore-not-existing
-rm *.profraw
+export LLVM_PROFILE_FILE="./target/debug/coverage/structures-%p-%m.profraw" 
+cargo test
+grcov ./target/debug/coverage/ -s . --binary-path ./target/debug/ -t html --branch -o ./target/debug/coverage/ --llvm --ignore-not-existing
+grcov ./target/debug/coverage/ -s . --binary-path ./target/debug/ -t lcov --branch -o ./target/debug/coverage/lcov.info --llvm --ignore-not-existing
+rm ./target/debug/coverage/*.profraw
 unset RUSTFLAGS
 unset LLVM_PROFILE_FILE
 ```
 
 ## Miri
 
-Run Miri interpreter to check for undefined behavior.
+Run Miri interpreter with tests to check for undefined behavior.
 
 ```bash
 cargo clean

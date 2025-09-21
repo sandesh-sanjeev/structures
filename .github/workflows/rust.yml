@@ -1,0 +1,60 @@
+name: Rust
+
+on:
+  push:
+    branches: ["master"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy, rustfmt, llvm-tools
+
+      - name: Check Rust version
+        run: cargo --version
+
+      - name: Deny cargo fmt warnings
+        run: cargo fmt --check
+
+      - name: Deny cargo clippy warnings
+        run: cargo clippy -- --deny warnings --no-deps
+
+      - name: Build crate
+        run: |
+          cargo build
+
+      - name: Test coverage reporting
+        env:
+          RUST_BACKTRACE: 1
+        run: |
+          cargo clean
+          cargo install grcov
+          export RUSTFLAGS="-Cinstrument-coverage" 
+          cargo build
+          mkdir ./target/debug/coverage
+          export LLVM_PROFILE_FILE="./target/debug/coverage/structures-%p-%m.profraw" 
+          cargo test
+          grcov ./target/debug/coverage/ -s . --binary-path ./target/debug/ -t html --branch -o ./target/debug/coverage/ --llvm --ignore-not-existing
+          grcov ./target/debug/coverage/ -s . --binary-path ./target/debug/ -t lcov --branch -o ./target/debug/coverage/lcov.info --llvm --ignore-not-existing
+          rm ./target/debug/coverage/*.profraw
+          unset RUSTFLAGS
+          unset LLVM_PROFILE_FILE
+
+      - name: Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          file: ./target/debug/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage-report
+          path: ./target/debug/coverage/html/index.html

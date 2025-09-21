@@ -84,6 +84,12 @@ impl<T> Array<Option<T>> {
 unsafe impl<T: Send> Send for Array<T> {}
 unsafe impl<T: Sync> Sync for Array<T> {}
 
+impl<T> Default for Array<T> {
+    fn default() -> Self {
+        Array::new()
+    }
+}
+
 impl<'a, T> IntoIterator for &'a Array<T> {
     type Item = &'a T;
     type IntoIter = std::slice::Iter<'a, T>;
@@ -195,8 +201,8 @@ mod tests {
 
     #[test]
     fn seq_no_zero_len() {
-        let elements: Vec<Seqno> = Vec::new();
-        let array: Array<Seqno> = Array::new();
+        let elements: Vec<Seqno> = Vec::default();
+        let array: Array<Seqno> = Array::default();
 
         assert_eq(&elements, &array);
         assert_eq!(format!("{elements:?}"), format!("{array:?}"));
@@ -217,8 +223,8 @@ mod tests {
 
     #[test]
     fn zst_zero_len() {
-        let elements: Vec<Zst> = Vec::new();
-        let array: Array<Zst> = Array::new();
+        let elements: Vec<Zst> = Vec::default();
+        let array: Array<Zst> = Array::default();
 
         assert_eq(&elements, &array);
         assert_eq!(format!("{elements:?}"), format!("{array:?}"));
