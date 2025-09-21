@@ -1,0 +1,10 @@
+[package]
+name = "structures"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[dev-dependencies]
+# For property based tests.
+bolero = "0.13"
