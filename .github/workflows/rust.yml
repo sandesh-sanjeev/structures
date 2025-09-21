@@ -16,7 +16,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
-          components: clippy, rustfmt, llvm-tools
+          components: clippy, rustfmt
 
       - name: Check Rust version
         run: cargo --version
@@ -35,26 +35,16 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: |
-          cargo clean
-          cargo install grcov
-          export RUSTFLAGS="-Cinstrument-coverage" 
-          cargo build
-          mkdir ./target/debug/coverage
-          export LLVM_PROFILE_FILE="./target/debug/coverage/structures-%p-%m.profraw" 
-          cargo test
-          grcov ./target/debug/coverage/ -s . --binary-path ./target/debug/ -t html --branch -o ./target/debug/coverage/ --llvm --ignore-not-existing
-          grcov ./target/debug/coverage/ -s . --binary-path ./target/debug/ -t lcov --branch -o ./target/debug/coverage/lcov.info --llvm --ignore-not-existing
-          rm ./target/debug/coverage/*.profraw
-          unset RUSTFLAGS
-          unset LLVM_PROFILE_FILE
+          cargo install cargo-tarpaulin
+          time cargo tarpaulin
 
       - name: Coveralls
         uses: coverallsapp/github-action@v2
         with:
-          file: ./target/debug/coverage/lcov.info
+          file: lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
       
       - uses: actions/upload-artifact@v4
         with:
           name: test-coverage-report
-          path: ./target/debug/coverage/html/index.html
+          path: tarpaulin-report.html

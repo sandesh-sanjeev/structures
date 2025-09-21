@@ -7,34 +7,40 @@ This crate provides different types of heap allocated data structures.
 
 ## Array
 
-## Coverage
+## Tests
 
-Run tests and generate coverage data.
+Run tests.
 
 ```bash
-cargo clean
-cargo install grcov
-rustup component add llvm-tools
-export RUSTFLAGS="-Cinstrument-coverage" 
-cargo build
-mkdir ./target/debug/coverage
-export LLVM_PROFILE_FILE="./target/debug/coverage/structures-%p-%m.profraw" 
-cargo test
-grcov ./target/debug/coverage/ -s . --binary-path ./target/debug/ -t html --branch -o ./target/debug/coverage/ --llvm --ignore-not-existing
-grcov ./target/debug/coverage/ -s . --binary-path ./target/debug/ -t lcov --branch -o ./target/debug/coverage/lcov.info --llvm --ignore-not-existing
-rm ./target/debug/coverage/*.profraw
-unset RUSTFLAGS
-unset LLVM_PROFILE_FILE
+$ cargo test
 ```
 
-## Miri
+### Coverage
+
+Run tests and gather coverage data.
+
+```bash
+# Install tarpaulin
+$ cargo install cargo-tarpaulin
+
+# Run tests with coverage.
+$ cargo tarpaulin
+```
+
+### Miri
 
 Run Miri interpreter with tests to check for undefined behavior.
 
 ```bash
-cargo clean
-rustup +nightly component add miri
-rustup override set nightly
-MIRIFLAGS=-Zmiri-disable-isolation cargo miri test
-rustup override remove
+# Install Miri on nightly rust
+$ rustup +nightly component add miri
+
+# Override workspace to nightly
+$ rustup override set nightly
+
+# Run miri on tests
+$ MIRIFLAGS=-Zmiri-disable-isolation cargo miri test
+
+# Remove workspace override.
+$ rustup override remove
 ```
