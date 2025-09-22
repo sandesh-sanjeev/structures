@@ -7,6 +7,8 @@ This crate provides different types of heap allocated data structures.
 
 ## Array
 
+A fixed size, heap allocated array. Similar to `Vec`, expect it can't grow or shrink.
+
 ## Tests
 
 Run tests.

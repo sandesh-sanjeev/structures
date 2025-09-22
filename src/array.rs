@@ -26,7 +26,7 @@ impl<T> Array<T> {
     /// Create a new array of length zero.
     ///
     /// Note that this does not perform any heap allocation.
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             len: 0,
             ptr: NonNull::dangling(),
@@ -66,18 +66,6 @@ impl<T> Array<T> {
         }
 
         Self { ptr, len }
-    }
-}
-
-impl<T> Array<Option<T>> {
-    /// Create an array initially filled with [`None`].
-    ///
-    /// # Arguments
-    ///
-    /// * `len` - Length of the array.
-    #[inline]
-    pub fn with_none(len: usize) -> Self {
-        Array::from_fn(len, |_| None)
     }
 }
 
@@ -124,6 +112,14 @@ impl<T: Clone> Clone for Array<T> {
     }
 }
 
+impl<T: Eq> Eq for Array<T> {}
+
+impl<T: PartialEq> PartialEq for Array<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref().eq(other.as_ref())
+    }
+}
+
 impl<T: Debug> Debug for Array<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
@@ -167,8 +163,9 @@ impl<T> Drop for Array<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bolero::{TypeGenerator, check, generator};
-    use std::{num::NonZeroU64, ops::Bound};
+    use bolero::{TypeGenerator, check};
+    use rstest::rstest;
+    use std::{num::NonZeroU64, ops::Bound, panic::RefUnwindSafe};
 
     const MAX_SIZE: usize = 1024 * 1024; // 1 MB
 
@@ -179,7 +176,7 @@ mod tests {
     impl TypeGenerator for Seqno {
         fn generate<D: bolero::Driver>(driver: &mut D) -> Option<Self> {
             driver
-                .gen_u64(Bound::Unbounded, Bound::Unbounded)
+                .gen_u64(Bound::Included(&1), Bound::Unbounded)
                 .and_then(NonZeroU64::new)
                 .map(Seqno)
         }
@@ -193,143 +190,53 @@ mod tests {
     #[derive(Debug, Copy, Clone, PartialEq, Eq, TypeGenerator)]
     struct Zst;
 
-    #[test]
-    fn seq_no_zero_len() {
-        let elements: Vec<Seqno> = Vec::default();
-        let array: Array<Seqno> = Array::default();
-
-        assert_eq(&elements, &array);
-        assert_eq!(format!("{elements:?}"), format!("{array:?}"));
+    #[rstest]
+    #[case(Zst)]
+    #[case(Seqno(NonZeroU64::MIN))]
+    #[case(Bytes(Vec::new()))]
+    fn zero_len_array<T: PartialEq + Debug + Clone>(#[case] _value: T) {
+        let oracle: Vec<T> = Vec::default();
+        let array: Array<T> = Array::default();
+        assert_eq(&oracle, &array);
     }
 
-    #[test]
-    fn seq_no_with_none() {
-        check!()
-            .with_generator(generator::produce::<usize>().with().bounds(1..1024))
-            .for_each(|size| {
-                let elements = vec![None; *size];
-                let array = Array::<Option<Seqno>>::with_none(*size);
-
-                assert_eq(&elements, &array);
-                assert_eq!(format!("{elements:?}"), format!("{array:?}"));
-            });
-    }
-
-    #[test]
-    fn seq_no_arbitrary() {
+    #[rstest]
+    #[case(Zst)]
+    #[case(Seqno(NonZeroU64::MIN))]
+    #[case(Bytes(Vec::new()))]
+    fn array_state_machine<T: PartialEq + Debug + Clone + RefUnwindSafe + TypeGenerator>(
+        #[case] value: T,
+    ) {
         check!()
             .with_max_len(MAX_SIZE)
-            .with_type::<Vec<Seqno>>()
-            .for_each(|elements| {
-                let mut array = Array::from(elements.as_slice());
-                assert_eq(&elements, &array);
-                assert_eq!(format!("{elements:?}"), format!("{array:?}"));
+            .with_type::<Vec<Option<T>>>()
+            .for_each(|oracle| {
+                let mut array = Array::from(oracle.as_slice());
+                let mut array_1 = Clone::clone(&array);
+
+                // Make sure everything is equivalent to one another.
+                assert_eq(&oracle, &array);
+                assert_eq!(&array, &array_1);
+                assert_eq!(format!("{oracle:?}"), format!("{array:?}"));
+                assert_eq!(format!("{oracle:#?}"), format!("{array:#?}"));
 
                 // Mutate all the elements in the array.
                 for elem in &mut array {
-                    elem.0 = NonZeroU64::MAX;
+                    elem.replace(value.clone());
+                }
+
+                for elem in &mut array_1 {
+                    elem.take();
                 }
 
                 // Make sure update is visible correctly.
                 for elem in &array {
-                    assert_eq!(elem.clone(), Seqno(NonZeroU64::MAX));
+                    assert_eq!(elem.as_ref(), Some(&value));
                 }
 
-                // Clone array and make sure equal to base array.
-                let array_clone = array.clone();
-                assert_eq(&array, &array_clone);
-            });
-    }
-
-    #[test]
-    fn zst_zero_len() {
-        let elements: Vec<Zst> = Vec::default();
-        let array: Array<Zst> = Array::default();
-
-        assert_eq(&elements, &array);
-        assert_eq!(format!("{elements:?}"), format!("{array:?}"));
-    }
-
-    #[test]
-    fn zst_with_none() {
-        check!()
-            .with_generator(generator::produce::<usize>().with().bounds(1..1024))
-            .for_each(|size| {
-                let elements = vec![None; *size];
-                let array = Array::<Option<Zst>>::with_none(*size);
-
-                assert_eq(&elements, &array);
-                assert_eq!(format!("{elements:?}"), format!("{array:?}"));
-            });
-    }
-
-    #[test]
-    fn zst_arbitrary() {
-        check!()
-            .with_max_len(MAX_SIZE)
-            .with_type::<Vec<Zst>>()
-            .for_each(|elements| {
-                let mut array = Array::from(elements.as_slice());
-                assert_eq(&elements, &array);
-                assert_eq!(format!("{elements:?}"), format!("{array:?}"));
-
-                // Mutate all the elements in the array.
-                for elem in &mut array {
-                    std::mem::swap(elem, &mut Zst);
+                for elem in &array_1 {
+                    assert_eq!(elem.as_ref(), None);
                 }
-
-                // Make sure update is visible correctly.
-                for elem in &array {
-                    assert_eq!(elem, &Zst);
-                }
-            });
-    }
-
-    #[test]
-    fn bytes_zero_len() {
-        let elements: Vec<Bytes> = Vec::default();
-        let array: Array<Bytes> = Array::default();
-
-        assert_eq(&elements, &array);
-        assert_eq!(format!("{elements:?}"), format!("{array:?}"));
-    }
-
-    #[test]
-    fn bytes_with_none() {
-        check!()
-            .with_generator(generator::produce::<usize>().with().bounds(1..1024))
-            .for_each(|size| {
-                let elements = vec![None; *size];
-                let array = Array::<Option<Bytes>>::with_none(*size);
-
-                assert_eq(&elements, &array);
-                assert_eq!(format!("{elements:?}"), format!("{array:?}"));
-            });
-    }
-
-    #[test]
-    fn bytes_arbitrary() {
-        check!()
-            .with_max_len(MAX_SIZE)
-            .with_type::<Vec<Bytes>>()
-            .for_each(|elements| {
-                let mut array = Array::from(elements.as_slice());
-                assert_eq(&elements, &array);
-                assert_eq!(format!("{elements:?}"), format!("{array:?}"));
-
-                // Mutate all the elements in the array.
-                for elem in &mut array {
-                    elem.0.clear();
-                }
-
-                // Make sure update is visible correctly.
-                for elem in &array {
-                    assert!(elem.0.is_empty());
-                }
-
-                // Clone array and make sure equal to base array.
-                let array_clone = array.clone();
-                assert_eq(&array, &array_clone);
             });
     }
 

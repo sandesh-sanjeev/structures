@@ -1,1 +1,3 @@
+//! # Structures
+
 pub mod array;

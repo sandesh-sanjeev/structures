@@ -8,3 +8,6 @@ edition = "2024"
 [dev-dependencies]
 # For property based tests.
 bolero = "0.13"
+
+# For parameterized tests.
+rstest = "0.26"
