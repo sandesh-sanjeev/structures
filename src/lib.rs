@@ -1,3 +1,5 @@
 //! # Structures
 
-pub mod array;
+pub(crate) mod array;
+
+pub use array::Array;

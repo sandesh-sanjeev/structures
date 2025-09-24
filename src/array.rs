@@ -9,6 +9,28 @@ use std::{
     slice::{from_raw_parts, from_raw_parts_mut},
 };
 
+/// A macro to initialize a the heap allocated array with an array like syntax.
+///
+/// # Syntax
+///
+/// * `array![]` create an empty array that does no heap allocations.
+/// * `array![32; 5]` create an array of length 5 with all elements as 32.
+/// * `array![1, 2, 3]` create an array of length 3 with elements 1, 2 and 3.
+#[macro_export]
+macro_rules! array {
+    () => {
+        $crate::Array::default()
+    };
+
+    ($elem:expr; $n:expr) => {
+        $crate::Array::from_fn($n, |_| $elem)
+    };
+
+    ($($x:expr),+ $(,)?) => (
+        $crate::Array::from(&[$($x),+][..])
+    );
+}
+
 /// An array that uses memory allocated on the heap.
 ///
 /// # Allocations
@@ -26,6 +48,7 @@ impl<T> Array<T> {
     /// Create a new array of length zero.
     ///
     /// Note that this does not perform any heap allocation.
+    #[inline]
     pub const fn new() -> Self {
         Self {
             len: 0,
@@ -73,6 +96,7 @@ unsafe impl<T: Send> Send for Array<T> {}
 unsafe impl<T: Sync> Sync for Array<T> {}
 
 impl<T> Default for Array<T> {
+    #[inline]
     fn default() -> Self {
         Array::new()
     }
@@ -115,12 +139,14 @@ impl<T: Clone> Clone for Array<T> {
 impl<T: Eq> Eq for Array<T> {}
 
 impl<T: PartialEq> PartialEq for Array<T> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.as_ref().eq(other.as_ref())
     }
 }
 
 impl<T: Debug> Debug for Array<T> {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
@@ -194,7 +220,7 @@ mod tests {
     #[case(Zst)]
     #[case(Seqno(NonZeroU64::MIN))]
     #[case(Bytes(Vec::new()))]
-    fn zero_len_array<T: PartialEq + Debug + Clone>(#[case] _value: T) {
+    fn array_zero_len<T: PartialEq + Debug + Clone>(#[case] _value: T) {
         let oracle: Vec<T> = Vec::default();
         let array: Array<T> = Array::default();
         assert_eq(&oracle, &array);
@@ -238,6 +264,27 @@ mod tests {
                     assert_eq!(elem.as_ref(), None);
                 }
             });
+    }
+
+    #[test]
+    fn macro_empty_array() {
+        let array: Array<u64> = array![];
+        let oracle: Vec<u64> = vec![];
+        assert_eq(&oracle, &array);
+    }
+
+    #[test]
+    fn macro_from_elem() {
+        let array = array![6; 10];
+        let oracle = vec![6; 10];
+        assert_eq(&oracle, &array);
+    }
+
+    #[test]
+    fn macro_from_elems() {
+        let array = array![1, 2, 3];
+        let oracle = vec![1, 2, 3];
+        assert_eq(&oracle, &array);
     }
 
     fn assert_eq<T: PartialEq + Debug>(expected: &[T], returned: &[T]) {
