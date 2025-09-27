@@ -25,9 +25,6 @@ jobs:
       - name: Check Rust version
         run: cargo --version
 
-      - name: Clean crate
-        run: cargo clean
-
       - name: Deny cargo fmt warnings
         run: cargo fmt --check
 
@@ -39,6 +36,25 @@ jobs:
       
       - name: Test crate
         run: cargo test
+
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup rust (nightly)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          components: miri
+
+      - name: Run Miri
+        env:
+          MIRIFLAGS: -Zmiri-disable-isolation
+        run: cargo miri test
 
   docs:
     name: Docs
