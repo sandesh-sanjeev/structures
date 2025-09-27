@@ -39,6 +39,7 @@ jobs:
 
   miri:
     name: Miri
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
@@ -58,7 +59,7 @@ jobs:
 
   docs:
     name: Docs
-    needs: build
+    needs: miri
     runs-on: ubuntu-latest
 
     permissions:
