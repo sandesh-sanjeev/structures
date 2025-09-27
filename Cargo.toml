@@ -7,5 +7,5 @@ edition = "2024"
 # For property based tests.
 bolero = "0.13"
 
-# For parameterized tests.
-rstest = "0.26"
+# For test generation.
+pastey = "0.1"

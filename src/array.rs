@@ -416,8 +416,8 @@ impl<T> Drop for Array<T> {
 mod tests {
     use super::*;
     use bolero::{TypeGenerator, check};
-    use rstest::rstest;
-    use std::{num::NonZeroU64, ops::Bound, panic::RefUnwindSafe};
+    use pastey::paste;
+    use std::{num::NonZeroU64, ops::Bound};
 
     const MAX_SIZE: usize = 1024 * 1024; // 1 MB
 
@@ -442,58 +442,70 @@ mod tests {
     #[derive(Debug, Copy, Clone, PartialEq, Eq, TypeGenerator)]
     struct Zst;
 
-    // Just cause it gets tiring to add these trait bounds.
-    trait Elem: Clone + Debug + PartialEq + RefUnwindSafe + TypeGenerator {}
-    impl<T: Clone + Debug + PartialEq + RefUnwindSafe + TypeGenerator> Elem for T {}
+    macro_rules! test_array {
+        ($($type:ty),*) => {
+            paste! {
+                $(
+                    #[test]
+                    fn [<test_array_ $type:snake>]() {
+                        check!()
+                            .with_max_len(MAX_SIZE)
+                            .with_type::<(Vec<$type>, $type)>()
+                            .for_each(|(oracle, val)| {
+                                // Create an array from oracle.
+                                let mut oracle = oracle.clone();
+                                let mut array = Array::from(oracle.clone());
 
-    #[test]
-    fn zst_state_machine() {
-        test_state_machine::<Zst>();
+                                // Make sure everything is equivalent to one another.
+                                assert_eq!(&array, &oracle);
+                                assert_eq!(format!("{oracle:?}"), format!("{array:?}"));
+                                assert_eq!(format!("{oracle:#?}"), format!("{array:#?}"));
+
+                                // Mutate elements in both.
+                                for (oracle_elem, array_elem) in oracle.iter_mut().zip(array.iter_mut()) {
+                                    let _ = std::mem::replace(oracle_elem, val.clone());
+                                    let _ = std::mem::replace(array_elem, val.clone());
+                                }
+
+                                // Make sure updates are visible.
+                                for (oracle_elem, array_elem) in oracle.iter().zip(array.iter()) {
+                                    assert_eq!(oracle_elem, val);
+                                    assert_eq!(array_elem, val);
+                                }
+
+                                // Make sure everything is still equivalent to one another.
+                                assert_eq!(&array, &oracle);
+                                assert_eq!(format!("{oracle:?}"), format!("{array:?}"));
+                                assert_eq!(format!("{oracle:#?}"), format!("{array:#?}"));
+                            });
+                    }
+
+                    #[test]
+                    fn [<test_uninit_array_ $type:snake>]() {
+                        check!().with_type::<Vec<$type>>().for_each(|oracle| {
+                            // Uninitialized array
+                            let mut array = Array::uninit(oracle.len());
+
+                            // Initialize elements in the array with elements from oracle.
+                            for i in 0..oracle.len() {
+                                array[i].write(oracle[i].clone());
+                            }
+
+                            // Make sure all the elements are correctly visible.
+                            for i in 0..oracle.len() {
+                                assert_eq!(&oracle[i], unsafe { array[i].assume_init_ref() });
+                            }
+
+                            // Gotta be careful not to leak memory when using uninitialized array.
+                            for i in 0..oracle.len() {
+                                unsafe {array[i].assume_init_drop()};
+                            }
+                        });
+                    }
+                )*
+            }
+        };
     }
 
-    #[test]
-    fn seqno_state_machine() {
-        test_state_machine::<Seqno>();
-    }
-
-    #[rstest]
-    fn bytes_state_machine() {
-        test_state_machine::<Bytes>();
-    }
-
-    fn test_state_machine<T: Elem>() {
-        check!()
-            .with_max_len(MAX_SIZE)
-            .with_type::<(Vec<Option<T>>, T)>()
-            .for_each(|(oracle, val)| {
-                let mut array = Array::from(oracle.clone());
-                let mut array_1 = Array::from(oracle.as_slice());
-
-                // Make sure everything is equivalent to one another.
-                assert_eq!(&array, &array_1);
-                assert_eq!(&array, oracle);
-                assert_eq!(format!("{oracle:?}"), format!("{array:?}"));
-                assert_eq!(format!("{oracle:#?}"), format!("{array:#?}"));
-
-                // Mutate all the elements in the array.
-                for elem in &mut array {
-                    elem.replace(val.clone());
-                    assert_eq!(elem.as_ref(), Some(val));
-                }
-
-                for elem in &mut array_1 {
-                    elem.take();
-                    assert_eq!(elem.as_ref(), None);
-                }
-
-                // Make sure mutation is still visible.
-                for elem in &array {
-                    assert_eq!(elem.as_ref(), Some(val));
-                }
-
-                for elem in &array_1 {
-                    assert_eq!(elem.as_ref(), None);
-                }
-            });
-    }
+    test_array!(Zst, Seqno, Bytes);
 }

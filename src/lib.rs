@@ -4,9 +4,9 @@
 //!
 //! ## Safety
 //!
-//! I could've certainly used no unsafe, but I want to implement everything from scratch.
-//! That requires working with raw pointers and memory, so unsafe is (conservatively) used
-//! in the crate. As of now Miri is used to test for undefined behavior.
+//! The goal is to implement everything from scratch. That requires working with raw
+//! pointers and memory. So unsafe is (conservatively) used in the crate. As of now
+//! Miri is used to test for undefined behavior.
 //!
 //! ## Array
 //!
@@ -16,7 +16,8 @@
 //!
 //! Provides [`MaybeUninitArray`] for the adventurous, which is an array that can hold uninitialized
 //! elements. Elements can be safely aliased only after initialization, which the responsibility of
-//! the caller and thus requires use of unsafe.
+//! the caller and thus requires use of unsafe. Additionally caller is responsible for dropping
+//! initialized values (which also requires unsafe).
 
 pub(crate) mod array;
 
