@@ -2,4 +2,4 @@
 
 pub(crate) mod array;
 
-pub use array::Array;
+pub use array::{Array, MaybeUninitArray};

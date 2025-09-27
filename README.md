@@ -2,31 +2,21 @@
 
 This crate provides different types of heap allocated data structures.
 
-[![Build](https://github.com/sandesh-sanjeev/structures/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/sandesh-sanjeev/structures/actions/workflows/rust.yml)
-[![Coverage Status](https://coveralls.io/repos/github/sandesh-sanjeev/structures/badge.svg?branch=master)](https://coveralls.io/github/sandesh-sanjeev/structures?branch=master)
+[![Build Status][build-img]][build-url]
+[![Documentation][doc-img]][doc-url]
 
-## Array
-
-A fixed size, heap allocated array. Similar to `Vec`, expect it can't grow or shrink.
+[build-img]: https://github.com/sandesh-sanjeev/structures/actions/workflows/ci.yml/badge.svg?branch=master
+[build-url]: https://github.com/sandesh-sanjeev/structures/actions/workflows/ci.yml
+[doc-img]: https://img.shields.io/badge/docs.rs-aoc-4d76ae?style=for-the-badge
+[doc-url]: https://sandesh-sanjeev.github.io/structures/structures/index.html
 
 ## Tests
 
-Run tests.
+Run unit and doc tests.
 
 ```bash
+# Run all tests.
 $ cargo test
-```
-
-### Coverage
-
-Run tests and gather coverage data.
-
-```bash
-# Install tarpaulin
-$ cargo install cargo-tarpaulin
-
-# Run tests with coverage.
-$ cargo tarpaulin
 ```
 
 ### Miri
