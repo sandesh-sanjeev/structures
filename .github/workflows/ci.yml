@@ -44,7 +44,10 @@ jobs:
     name: Docs
     runs-on: ubuntu-latest
 
-    permissions: write-all
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
 
     concurrency:
       group: deploy
@@ -62,9 +65,7 @@ jobs:
       - name: Setup pages
         id: pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
+        
       - name: Clean docs directory
         run: cargo clean --doc
 
