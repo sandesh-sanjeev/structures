@@ -47,7 +47,6 @@ jobs:
     permissions:
       contents: write
       pages: write
-      id-token: write
 
     concurrency:
       group: deploy
@@ -87,6 +86,9 @@ jobs:
     name: Deploy
     needs: docs
     runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
 
     environment:
       name: github-pages
