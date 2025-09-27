@@ -9,10 +9,10 @@ use std::{
     slice::{from_raw_parts, from_raw_parts_mut},
 };
 
-/// Type alias for an array that might have uninitialized values.
+/// Type alias for an Array that may have uninitialized values.
 pub type MaybeUninitArray<T> = Array<MaybeUninit<T>>;
 
-/// A macro to initialize a the heap allocated array with an array like syntax.
+/// Initialize an [`Array`] with array like syntax.
 ///
 /// # Syntax
 ///
@@ -26,27 +26,27 @@ pub type MaybeUninitArray<T> = Array<MaybeUninit<T>>;
 ///
 /// ```
 /// # use structures::{array, Array};
-/// let vec: Vec<u64> = vec![];
-/// let array: Array<u64> = array![];
-/// assert_eq!(vec, array);
+/// let stack: [u64; _] = [];
+/// let heap: Array<u64> = array![];
+/// assert_eq!(stack, heap);
 /// ```
 ///
 /// Array from cloning an element N times.
 ///  
 /// ```
 /// # use structures::array;
-/// let vec = vec![32; 5];
-/// let array = array![32; 5];
-/// assert_eq!(vec, array);
+/// let stack = [32; 5];
+/// let heap = array![32; 5];
+/// assert_eq!(stack, heap);
 ///```
 ///
 /// Array from literal array elements.
 ///
 /// ```
 ///# use structures::array;
-/// let vec = vec![1, 2, 3];
-/// let array = array![1, 2, 3];
-/// assert_eq!(vec, array);
+/// let stack = [1, 2, 3];
+/// let heap = array![1, 2, 3];
+/// assert_eq!(stack, heap);
 /// ```
 #[macro_export]
 macro_rules! array {
@@ -63,11 +63,7 @@ macro_rules! array {
     };
 }
 
-/// An array that uses memory allocated on the heap.
-///
-/// An array can be thought of as a [`Vec`] that cannot be re-sized, I mean that's
-/// exactly what it is. Array is just way simpler, cause it doesn't have to deal
-/// with any re-sizing.
+/// A fixed length collection of elements held in contagious memory segment.
 ///
 /// # Layout
 ///
@@ -136,7 +132,7 @@ impl<T> Array<T> {
     /// // Requires unsafe because compiler cannot validate the value
     /// // is initialized, it has to assume.
     /// for elem in &array {
-    ///     let val = unsafe {elem.assume_init_ref()};
+    ///     let val = unsafe { elem.assume_init_ref() };
     ///     assert!(val.is_empty());
     /// }
     /// ```

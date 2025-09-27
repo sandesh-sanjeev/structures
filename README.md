@@ -7,7 +7,7 @@ This crate provides different types of heap allocated data structures.
 
 [build-img]: https://github.com/sandesh-sanjeev/structures/actions/workflows/ci.yml/badge.svg?branch=master
 [build-url]: https://github.com/sandesh-sanjeev/structures/actions/workflows/ci.yml
-[doc-img]: https://img.shields.io/badge/docs.rs-aoc-4d76ae?style=for-the-badge
+[doc-img]: https://img.shields.io/badge/crate-doc-green?style=flat
 [doc-url]: https://sandesh-sanjeev.github.io/structures/structures/index.html
 
 ## Tests

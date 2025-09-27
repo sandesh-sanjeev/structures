@@ -42,12 +42,12 @@ jobs:
 
   docs:
     name: Docs
+    needs: build
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
       
-
     concurrency:
       group: deploy
       cancel-in-progress: false
