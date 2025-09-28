@@ -1,16 +1,18 @@
 //! A collection of elements with fixed capacity.
 
+mod lazy;
+
 use std::{
     alloc::{Layout, alloc, dealloc, handle_alloc_error},
     fmt::Debug,
-    mem::{ManuallyDrop, MaybeUninit, needs_drop, transmute},
+    mem::{ManuallyDrop, MaybeUninit, needs_drop},
     ops::{Deref, DerefMut, Index, IndexMut},
     ptr::{self, NonNull, drop_in_place},
     slice::{SliceIndex, from_raw_parts, from_raw_parts_mut},
 };
 
 /// Type alias for an Array that may have uninitialized values.
-pub type MaybeUninitArray<T> = Array<MaybeUninit<T>>;
+pub type LazyArray<T> = Array<MaybeUninit<T>>;
 
 /// Initialize an [`Array`] with array like syntax.
 ///
@@ -121,7 +123,7 @@ impl<T> Array<T> {
     /// ```
     /// # use structures::Array;
     /// // Create a new uninitialized array.
-    /// let mut array = Array::<Vec<u8>>::uninit(10);
+    /// let mut array = Array::<Vec<u8>>::lazy(10);
     ///
     /// // Initialize the array.
     /// for elem in &mut array {
@@ -137,7 +139,7 @@ impl<T> Array<T> {
     /// }
     /// ```
     #[inline]
-    pub fn uninit(len: usize) -> MaybeUninitArray<T> {
+    pub fn lazy(len: usize) -> LazyArray<T> {
         Array::from_fn(len, |_| MaybeUninit::uninit())
     }
 
@@ -185,48 +187,6 @@ impl<T> Array<T> {
         }
 
         Self { ptr, len }
-    }
-}
-
-impl<T: Copy> MaybeUninitArray<T> {
-    /// Copy elements from a slice into the array.
-    ///
-    /// This allows for optimizing performance for copy types that can
-    /// be memcpy'd rather than working on element by element. when
-    /// [#79995](https://github.com/rust-lang/rust/issues/79995) is stabilized,
-    /// this can probably go away (at minimum unsafe parts can go away).
-    ///
-    /// # Panic
-    ///
-    /// * If the slice overflows bounds of the array.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - Index to start writes.
-    /// * `elems` - Elements to copy into array.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use structures::Array;
-    /// // Create an uninitialized array.
-    /// let mut array = Array::uninit(10);
-    ///
-    /// // Copy elements into the array.
-    /// let elems: Vec<_> = (0..10).collect();
-    /// array.copy_from_slice(0, &elems);
-    ///
-    /// // Make sure elements are copied correctly.
-    /// for (maybe_elem, elem) in array.iter().zip(&elems) {
-    ///     let definitely_elem = unsafe { maybe_elem.assume_init_ref() };
-    ///     assert_eq!(elem, definitely_elem);
-    /// }
-    /// ```
-    #[inline]
-    pub fn copy_from_slice(&mut self, index: usize, elems: &[T]) {
-        // Safety: T has the same size and alignment as MaybeUnint<T>.
-        let src: &[MaybeUninit<T>] = unsafe { transmute(elems) };
-        self[index..(index + src.len())].copy_from_slice(src);
     }
 }
 
@@ -413,22 +373,13 @@ mod tests {
     use super::*;
     use bolero::{TypeGenerator, check};
     use pastey::paste;
-    use std::{num::NonZeroU64, ops::Bound};
 
+    // Maximum size of inputs in property based tests.
     const MAX_SIZE: usize = 1024 * 1024; // 1 MB
 
     /// Test with sized trivially droppable type.
-    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-    struct Seqno(NonZeroU64);
-
-    impl TypeGenerator for Seqno {
-        fn generate<D: bolero::Driver>(driver: &mut D) -> Option<Self> {
-            driver
-                .gen_u64(Bound::Included(&1), Bound::Unbounded)
-                .and_then(NonZeroU64::new)
-                .map(Seqno)
-        }
-    }
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, TypeGenerator)]
+    struct Seqno(u64);
 
     /// Test with type that is not trivially droppable.
     #[derive(Debug, Clone, PartialEq, Eq, TypeGenerator)]
@@ -478,25 +429,26 @@ mod tests {
 
                     #[test]
                     fn [<test_uninit_array_ $type:snake>]() {
-                        check!().with_type::<Vec<$type>>().for_each(|oracle| {
-                            // Uninitialized array
-                            let mut array = Array::uninit(oracle.len());
+                        check!()
+                            .with_max_len(MAX_SIZE)
+                            .with_type::<(Vec<$type>, $type)>()
+                            .for_each(|(oracle, val)| {
+                                // Uninitialized array
+                                let mut array = Array::lazy(oracle.len());
 
-                            // Initialize elements in the array with elements from oracle.
-                            for i in 0..oracle.len() {
-                                array[i].write(oracle[i].clone());
-                            }
+                                // Initialize elements in the array with elements from oracle.
+                                assert_eq!(array.write_from_slice(0, oracle), oracle);
 
-                            // Make sure all the elements are correctly visible.
-                            for i in 0..oracle.len() {
-                                assert_eq!(&oracle[i], unsafe { array[i].assume_init_ref() });
-                            }
+                                // Modify every element.
+                                let new_oracle = vec![val.clone(); oracle.len()];
+                                assert_eq!(unsafe { array.overwrite_from_slice(0, &new_oracle) }, new_oracle);
 
-                            // Gotta be careful not to leak memory when using uninitialized array.
-                            for i in 0..oracle.len() {
-                                unsafe {array[i].assume_init_drop()};
-                            }
-                        });
+                                // Make sure all the elements are correctly visible.
+                                assert_eq!(unsafe { array.assume_init(0, oracle.len()) }, &new_oracle);
+
+                                // Gotta be careful not to leak memory when using uninitialized array.
+                                unsafe { array.assume_init_drop(0, oracle.len()) };
+                            });
                     }
                 )*
             }

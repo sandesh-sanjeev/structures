@@ -14,11 +14,11 @@
 //! This is the heap allocated equivalent of a stack allocated array. Since this data structure
 //! is heap allocated, length of the array can be provided at runtime.
 //!
-//! Provides [`MaybeUninitArray`] for the adventurous, which is an array that can hold uninitialized
+//! Provides [`LazyArray`] for the adventurous, which is an array that can hold uninitialized
 //! elements. Elements can be safely aliased only after initialization, which the responsibility of
 //! the caller and thus requires use of unsafe. Additionally caller is responsible for dropping
 //! initialized values (which also requires unsafe).
 
 pub(crate) mod array;
 
-pub use array::{Array, MaybeUninitArray};
+pub use array::{Array, LazyArray};
