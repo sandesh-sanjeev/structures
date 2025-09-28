@@ -1,6 +1,7 @@
 //! A collection of elements with fixed capacity.
 
 mod lazy;
+pub(crate) mod ring;
 
 use std::{
     alloc::{Layout, alloc, dealloc, handle_alloc_error},
@@ -371,23 +372,12 @@ impl<T> Drop for Array<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bolero::{TypeGenerator, check};
+    use crate::tests::{Bytes, Seqno, Zst};
+    use bolero::check;
     use pastey::paste;
 
     // Maximum size of inputs in property based tests.
     const MAX_SIZE: usize = 1024 * 1024; // 1 MB
-
-    /// Test with sized trivially droppable type.
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, TypeGenerator)]
-    struct Seqno(u64);
-
-    /// Test with type that is not trivially droppable.
-    #[derive(Debug, Clone, PartialEq, Eq, TypeGenerator)]
-    struct Bytes(Vec<u8>);
-
-    /// Test with zero sized type.
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, TypeGenerator)]
-    struct Zst;
 
     macro_rules! test_array {
         ($($type:ty),*) => {
@@ -428,7 +418,7 @@ mod tests {
                     }
 
                     #[test]
-                    fn [<test_uninit_array_ $type:snake>]() {
+                    fn [<test_lazy_array_ $type:snake>]() {
                         check!()
                             .with_max_len(MAX_SIZE)
                             .with_type::<(Vec<$type>, $type)>()
